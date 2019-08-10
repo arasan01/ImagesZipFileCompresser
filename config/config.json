@@ -1,0 +1,16 @@
+{
+    "mainConfig": {
+        "Width": 1920,
+        "Height": 1080
+    },
+    "advancedConfig": {
+        "imageQuality": 85,
+        "compressLevel": 9,
+        "purgeOriginal": false
+    },
+    "pathConfig": {
+        "temporaryDirectory": "org",
+        "convertPath": "convert.exe",
+        "archivePath": "7z.exe"
+    }
+}
