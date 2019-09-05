@@ -12,6 +12,7 @@ import subprocess
 import shutil
 import glob
 import os
+from pprint import pprint
 
 
 class Application(tk.Frame):
@@ -20,6 +21,7 @@ class Application(tk.Frame):
     thread_lock = threading.Lock()
     thread_counter = 0
     title_label = None
+    progress_label = None
     progress = None
     config = None
     isConvert_now = False
@@ -57,6 +59,8 @@ class Application(tk.Frame):
         Application.progress = tk.ttk.Progressbar(
             pw_progress, orient="horizontal", length=100)
         Application.progress.pack(side="left")
+        Application.progress_label = tk.Label(pw_progress, text="")
+        Application.progress_label.pack(side="left")
         Application.title_label = tk.Label(pw_progress, text="処理中ファイルの名前")
         Application.title_label.pack(side="left")
 
@@ -66,16 +70,16 @@ class Application(tk.Frame):
             "height": 3
         }
         btn_select = tk.Button(
-            pw_buttons, text="選択", command=lambda: self.select_item(lb), **btn_size)
+            pw_buttons, text="選択", command=lambda: self.select_item(lb) if not Application.isConvert_now else None, **btn_size)
         btn_select.grid(row=0, column=0)
         btn_delete = tk.Button(
-            pw_buttons, text="削除", command=lambda: self.delete_item(lb), **btn_size)
+            pw_buttons, text="削除", command=lambda: self.delete_item(lb) if not Application.isConvert_now else None, **btn_size)
         btn_delete.grid(row=0, column=1)
         btn_undo = tk.Button(
-            pw_buttons, text="復元", command=lambda: self.undo_item(lb), **btn_size)
+            pw_buttons, text="復元", command=lambda: self.undo_item(lb) if not Application.isConvert_now else None, **btn_size)
         btn_undo.grid(row=0, column=2)
         btn_convert = tk.Button(
-            pw_buttons, text="変換", command=lambda: self.convert(lb), **btn_size)
+            pw_buttons, text="変換", command=lambda: self.convert(lb) if not Application.isConvert_now else None, **btn_size)
         btn_convert.grid(row=0, column=3)
         btn_cancel = tk.Button(
             pw_buttons, text="中止", command=lambda: self.cancel(), **btn_size)
@@ -106,14 +110,15 @@ class Application(tk.Frame):
             lb.insert(index, element)
 
     def convert(self, lb):
-        Application.paths = list(lb.get(0, tk.END))
+        Application.paths = list(reversed(lb.get(0, tk.END)))
         self.paths_len = len(Application.paths)
-        Application.thread_counter = 0
-        Application.isConvert_now = True
-        self.queue = queue.Queue()
-        for _ in range(self.paths_len):
-            ThreadedTask(self.queue).start()
-        self.master.after(100, self.process_queue)
+        if self.paths_len:
+            Application.thread_counter = 0
+            Application.isConvert_now = True
+            self.queue = queue.Queue()
+            for _ in range(self.paths_len):
+                ThreadedTask(self.queue).start()
+            self.master.after(100, self.process_queue)
 
     def process_queue(self):
         try:
@@ -144,8 +149,10 @@ class ThreadedTask(threading.Thread):
         Application.thread_lock.acquire()
         path = Application.paths[Application.thread_counter]
 
+        Application.progress_label[
+            'text'] = f"{Application.thread_counter+1} / {len(Application.paths)} : "
         Application.title_label[
-            'text'] = f"{Application.thread_counter+1} / {len(Application.paths)} : "+path
+            'text'] = path
         archiver = Application.config["pathConfig"]["archivePath"]
         tempDir = Application.config["pathConfig"]["temporaryDirectory"]
         if os.path.exists(tempDir):
@@ -197,8 +204,13 @@ class ThreadedTask(threading.Thread):
             Application.progress.configure(value=i+1)
             Application.progress.update()
             fnew = f[:-4] + "_n" + f[-4:]
-            subprocess.run([converter, "-resize",
-                            imW + "x" + imH, "-quality", imQuality, f, fnew], shell=True)
+            subprocess.run([
+                converter,
+                "-define", "jpeg:size=" + imW + "+" + imH,
+                "-resize", imW + "x" + imH,
+                "-quality", imQuality,
+                f,
+                fnew], shell=True)
             os.remove(f)
 
         if not Application.isConvert_now:
@@ -234,6 +246,7 @@ class ThreadedTask(threading.Thread):
 
 with open("config/config.json", "r") as f:
     jd = json.load(f)
+pprint(jd)
 root = tk.Tk()
 myapp = Application(master=root, config=jd)
 myapp.master.title("ZIP圧縮")  # タイトル
