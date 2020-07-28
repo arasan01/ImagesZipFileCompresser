@@ -1,5 +1,8 @@
 # ZIP圧縮された画像ファイルのサイズを下げる
 
+ビルド済み
+https://github.com/arasan01/ImagesZipFileCompresser/releases
+
 ## 依存関係
 
 - 7z.exe
